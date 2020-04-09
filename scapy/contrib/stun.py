@@ -5,10 +5,10 @@ from scapy.packet import Packet
 from scapy.compat import orb
 from scapy.utils import strxor
 
-_XOR_MAPPED_ADDRESS = 0x0020
-
+_ATTRIB_TYPE_XOR_MAPPED_ADDRESS = 0x0020
+_ATTRIB_TYPE_MAPPED_ADDRESS = 0x0001
 AttributeTypes = {
-     0x0001: 'MAPPED-ADDRESS',
+     _ATTRIB_TYPE_MAPPED_ADDRESS: 'MAPPED-ADDRESS',
      0x0002: 'RESPONSE-ADDRESS',
      0x0003: 'CHANGE-ADDRESS',
      0x0004: 'SOURCE-ADDRESS',
@@ -21,7 +21,7 @@ AttributeTypes = {
      0x000B: 'REFLECTED-FROM',
      0x0014: 'REALM',
      0x0015: 'NONCE',
-     _XOR_MAPPED_ADDRESS: 'XOR-MAPPED-ADDRESS',
+     _ATTRIB_TYPE_XOR_MAPPED_ADDRESS: 'XOR-MAPPED-ADDRESS',
      0x8022: 'SOFTWARE',
      0x8023: 'ALTERNATE-SERVER',
      0x8028: 'FINGERPRINT'
@@ -126,7 +126,7 @@ class StunAttribute(Packet):
 class XorMappedAddress(StunAttribute):
     __slots__ = ['ip_address']
     fields_desc = [ 
-        ShortEnumField("type", _XOR_MAPPED_ADDRESS, AttributeTypes),
+        ShortEnumField("type", _ATTRIB_TYPE_XOR_MAPPED_ADDRESS, AttributeTypes),
         FieldLenField("length", 0, fmt="H"),
         XByteField("x", 0),
         XByteField("family", 0),
@@ -144,7 +144,7 @@ class XorMappedAddress(StunAttribute):
 
 class XorMappedIpAddress(XorMappedAddress):
     fields_desc = [ 
-        ShortEnumField("type", _XOR_MAPPED_ADDRESS, AttributeTypes),
+        ShortEnumField("type", _ATTRIB_TYPE_XOR_MAPPED_ADDRESS, AttributeTypes),
         FieldLenField("length", 0, fmt="H"),
         XByteField("x", 0),
         XByteField("family", 0),
@@ -157,12 +157,50 @@ class XorMappedIpAddress(XorMappedAddress):
 
 class XorMappedIp6Address(XorMappedAddress):
     fields_desc = [ 
-        ShortEnumField("type", _XOR_MAPPED_ADDRESS, AttributeTypes),
+        ShortEnumField("type", _ATTRIB_TYPE_XOR_MAPPED_ADDRESS, AttributeTypes),
         FieldLenField("length", 0, fmt="H"),
         XByteField("x", 0),
         XByteField("family", 0),
         _XorShortField("port", 0),
         _XorIP6Field("address", '::')
+    ]
+
+class MappedAddress(StunAttribute):
+    fields_desc = [
+        ShortEnumField("type", _ATTRIB_TYPE_MAPPED_ADDRESS, AttributeTypes),
+        FieldLenField("length", 0, fmt="H"),
+        XByteField("x", 0),
+        XByteField("family", 0),
+        ShortField("port", 0),
+    ]
+
+    @classmethod
+    def dispatch_hook(cls, _pkt=None, *args, **kwargs):
+        if _pkt:
+            if _pkt[0] == _FAMILY_IP4:
+                cls = MappedIpAddress
+            elif _pkt[0] == _FAMILY_IP6:
+                cls = MappedIp6Address
+        return cls
+
+class MappedIpAddress(MappedAddress):
+    fields_desc = [
+        ShortEnumField("type", _ATTRIB_TYPE_MAPPED_ADDRESS, AttributeTypes),
+        FieldLenField("length", 0, fmt="H"),
+        XByteField("x", 0),
+        XByteField("family", 0),
+        ShortField("port", 0),
+        IPField("address", None)
+    ]
+
+class MappedIp6Address(MappedAddress):
+    fields_desc = [
+        ShortEnumField("type", _ATTRIB_TYPE_MAPPED_ADDRESS, AttributeTypes),
+        FieldLenField("length", 0, fmt="H"),
+        XByteField("x", 0),
+        XByteField("family", 0),
+        ShortField("port", 0),
+        IP6Field("address", None)
     ]
 
 class STUN(Packet):
